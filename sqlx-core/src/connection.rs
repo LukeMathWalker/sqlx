@@ -30,6 +30,29 @@ pub trait Connection: Send {
     where
         Self: Sized;
 
+    /// Begin a new transaction using a custom `BEGIN` statement.  
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.  
+    /// 
+    /// `begin_with` can be used, in particular, to specify a isolation level for the newly
+    /// created transaction
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use sqlx_core::connection::Connection;
+    /// use sqlx_core::error::Error;
+    /// use sqlx_core::executor::Executor;
+    /// use sqlx_core::postgres::{PgConnection, PgRow};
+    /// use sqlx_core::query::query;
+    ///
+    /// # pub async fn _f(conn: &mut PgConnection) -> Result<(), Error> {
+    /// let transaction = conn.begin_with("BEGIN TRANSACTION ISOLATION level SERIALIZABLE;".into()).await?;
+    /// // [...]
+    /// # }
+    fn begin_with(&mut self, statement: String) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized;
+
     /// Execute the function inside a transaction.
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not

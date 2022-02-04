@@ -20,6 +20,11 @@ pub trait TransactionManager {
         conn: &mut <Self::Database as Database>::Connection,
     ) -> BoxFuture<'_, Result<(), Error>>;
 
+    /// Begin a new transaction using a custom `BEGIN` statement.  
+    fn begin_with(
+        conn: &mut <Self::Database as Database>::Connection, statement: String
+    ) -> BoxFuture<'_, Result<(), Error>>;
+
     /// Commit the active transaction or release the most recent savepoint.
     fn commit(
         conn: &mut <Self::Database as Database>::Connection,
@@ -69,6 +74,22 @@ where
 
         Box::pin(async move {
             DB::TransactionManager::begin(&mut conn).await?;
+
+            Ok(Self {
+                connection: conn,
+                open: true,
+            })
+        })
+    }
+
+    pub(crate) fn begin_with(
+        conn: impl Into<MaybePoolConnection<'c, DB>>,
+        statement: String
+    ) -> BoxFuture<'c, Result<Self, Error>> {
+        let mut conn = conn.into();
+
+        Box::pin(async move {
+            DB::TransactionManager::begin_with(&mut conn, statement).await?;
 
             Ok(Self {
                 connection: conn,
@@ -220,6 +241,15 @@ pub(crate) fn begin_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
         Cow::Borrowed("BEGIN")
     } else {
         Cow::Owned(format!("SAVEPOINT _sqlx_savepoint_{}", depth))
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) fn custom_begin_or_savepoint(begin_statement: String, depth: usize) -> String {
+    if depth == 0 {
+        begin_statement
+    } else {
+        format!("SAVEPOINT _sqlx_savepoint_{}", depth)
     }
 }
 

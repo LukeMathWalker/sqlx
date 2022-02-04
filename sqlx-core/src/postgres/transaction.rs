@@ -6,7 +6,7 @@ use crate::postgres::message::Query;
 use crate::postgres::{PgConnection, Postgres};
 use crate::transaction::{
     begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
-    TransactionManager,
+    TransactionManager, custom_begin_or_savepoint,
 };
 
 /// Implementation of [`TransactionManager`] for PostgreSQL.
@@ -18,6 +18,17 @@ impl TransactionManager for PgTransactionManager {
     fn begin(conn: &mut PgConnection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             conn.execute(&*begin_ansi_transaction_sql(conn.transaction_depth))
+                .await?;
+
+            conn.transaction_depth += 1;
+
+            Ok(())
+        })
+    }
+
+    fn begin_with(conn: &mut PgConnection, statement: String) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            conn.execute(&*custom_begin_or_savepoint(statement, conn.transaction_depth))
                 .await?;
 
             conn.transaction_depth += 1;

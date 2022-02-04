@@ -141,6 +141,16 @@ impl Connection for PgConnection {
         Transaction::begin(self)
     }
 
+    fn begin_with(
+        &mut self,
+        statement: String,
+    ) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin_with(self, statement)
+    }
+
     fn cached_statements_size(&self) -> usize {
         self.cache_statement.len()
     }
